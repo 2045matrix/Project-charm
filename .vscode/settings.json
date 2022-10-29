@@ -1,0 +1,30 @@
+{
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+    }
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+    }
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+    }
+  },
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": false
+  },
+  "editor.detectIndentation": false,
+  "editor.tabSize": 2,
+  "jestrunner.configPath": "jest.config-server.ts",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "cSpell.words": [
+    "Mainnets"
+  ]
+}

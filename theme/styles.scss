@@ -1,0 +1,45 @@
+/* Make the Next.j wrappers 100% height */
+
+
+html {
+  height: 100%;
+  width: 100%;
+  display: table;
+}
+
+body {
+  width: 100%;
+  display: table-cell;
+}
+
+#__next {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+}
+
+div[role="presentation"] {
+  z-index: var(--z-index-modal);
+}
+
+.bangle-nv-container {
+  position: relative;
+}
+
+blockquote .bangle-nv-child-container {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+// make sure tooltips always appear, on Account page it falls behind our custom modal
+.MuiTooltip-popper {
+  z-index: var(--z-index-tooltip) !important;
+}
+
+
+.telegram-login-CharmverseBot {
+  width: 100%;
+}

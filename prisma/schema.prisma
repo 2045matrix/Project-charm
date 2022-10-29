@@ -1,0 +1,832 @@
+generator client {
+  provider        = "prisma-client-js"
+  binaryTargets   = ["linux-musl", "darwin", "native"]
+  previewFeatures = ["interactiveTransactions", "fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PermissionLevel {
+  full_access
+  editor
+  view_comment
+  view
+}
+
+enum SpacePermissionConfigurationMode {
+  custom
+  readOnly
+  collaborative
+  open
+}
+
+enum IdentityType {
+  Wallet
+  Discord
+  Telegram
+  RandomName
+}
+
+enum VoteStatus {
+  InProgress
+  Passed
+  Rejected
+  Cancelled
+}
+
+enum VoteType {
+  Approval
+  SingleChoice
+}
+
+enum NotificationChannel {
+  email
+  webapp
+}
+
+enum NotificationType {
+  multisig
+  mention
+  vote
+  proposal
+  bounty
+}
+
+enum BountyStatus {
+  suggestion
+  open
+  inProgress
+  complete
+  paid
+}
+
+enum BountyOperation {
+  work
+  review
+  lock
+  approve_applications
+  grant_permissions
+}
+
+enum BountyPermissionLevel {
+  reviewer
+  creator
+  submitter
+}
+
+enum ApplicationStatus {
+  applied
+  inProgress
+  review
+  rejected
+  complete
+  paid
+}
+
+enum WalletType {
+  metamask
+  gnosis
+}
+
+enum RoleSource {
+  guild_xyz
+}
+
+enum PagePermissionLevel {
+  full_access
+  proposal_editor
+  editor
+  view_comment
+  view
+  custom
+}
+
+enum PageOperations {
+  read
+  delete
+  edit_position
+  edit_content
+  edit_isPublic
+  edit_path
+  grant_permissions
+  comment
+  create_poll
+}
+
+enum SpaceOperation {
+  createPage
+  createBounty
+  createVote
+}
+
+enum ProfileItemType {
+  community
+  nft
+  poap
+  vc
+}
+
+enum ProposalStatus {
+  private_draft
+  draft
+  discussion
+  review
+  reviewed
+  vote_active
+  vote_closed
+}
+
+enum WorkspaceEventType {
+  proposal_status_change
+}
+
+model Space {
+  id                          String                            @id @default(uuid()) @db.Uuid
+  deletedAt                   DateTime?
+  createdAt                   DateTime                          @default(now())
+  createdBy                   String                            @db.Uuid
+  updatedAt                   DateTime                          @updatedAt
+  updatedBy                   String                            @db.Uuid
+  name                        String
+  domain                      String                            @unique
+  discordServerId             String?
+  defaultVotingDuration       Int?
+  snapshotDomain              String?
+  spaceImage                  String?
+  defaultPagePermissionGroup  PagePermissionLevel?              @default(full_access)
+  defaultPublicPages          Boolean?                          @default(false)
+  permissionConfigurationMode SpacePermissionConfigurationMode? @default(custom)
+  publicBountyBoard           Boolean?                          @default(false)
+  author                      User                              @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  blocks                      Block[]
+  bounties                    Bounty[]
+  bountyPermissions           BountyPermission[]
+  comments                    Comment[]
+  inviteLinks                 InviteLink[]
+  pages                       Page[]
+  permissions                 PagePermission[]
+  paymentMethods              PaymentMethod[]
+  roles                       Role[]
+  apiToken                    SpaceApiToken?
+  permittedGroups             SpacePermission[]                 @relation("permittedGroups")
+  spacePermissions            SpacePermission[]                 @relation("spacePermissions")
+  spaceRoles                  SpaceRole[]
+  threads                     Thread[]
+  TokenGate                   TokenGate[]
+  votes                       Vote[]
+  proposals                   Proposal[]
+  workspaceEvents             WorkspaceEvent[]
+  proposalCategory            ProposalCategory[]
+  memberProperty              MemberProperty[]
+  memberPropertyValue         MemberPropertyValue[]
+}
+
+model SpaceApiToken {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  spaceId   String   @unique @db.Uuid
+  token     String
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([token, spaceId])
+}
+
+enum PageType {
+  board
+  board_template
+  bounty
+  bounty_template
+  page
+  page_template
+  card
+  card_template
+  proposal
+  proposal_template
+  inline_board
+  inline_linked_board
+}
+
+model Page {
+  id                 String           @id @default(uuid()) @db.Uuid
+  deletedAt          DateTime?
+  createdAt          DateTime         @default(now())
+  createdBy          String           @db.Uuid
+  updatedAt          DateTime         @default(now())
+  updatedBy          String           @db.Uuid
+  title              String
+  content            Json?
+  contentText        String
+  galleryImage       String?
+  hasContent         Boolean          @default(false)
+  headerImage        String?
+  icon               String?
+  path               String
+  isTemplate         Boolean?         @default(false)
+  parentId           String?          @db.Uuid
+  spaceId            String           @db.Uuid
+  type               PageType
+  boardId            String?          @db.Uuid
+  autoGenerated      Boolean?         @default(false)
+  index              Int              @default(-1)
+  cardId             String?          @unique @db.Uuid
+  proposalId         String?          @unique @db.Uuid
+  snapshotProposalId String?
+  fullWidth          Boolean?         @default(false)
+  card               Block?           @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  author             User             @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  space              Space            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  comments           Comment[]
+  favorites          FavoritePage[]
+  permissions        PagePermission[]
+  bountyId           String?          @unique @db.Uuid
+  bounty             Bounty?          @relation(fields: [bountyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  proposal           Proposal?        @relation(fields: [proposalId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  threads            Thread[]
+  votes              Vote[]
+  workspaceEvents    WorkspaceEvent[]
+}
+
+model Block {
+  id        String    @id @db.Uuid
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  createdBy String    @db.Uuid
+  updatedAt DateTime  @default(now())
+  updatedBy String    @db.Uuid
+  spaceId   String    @db.Uuid
+  parentId  String
+  rootId    String    @db.Uuid
+  schema    Int
+  type      String
+  title     String
+  fields    Json
+  user      User      @relation(fields: [createdBy], references: [id])
+  space     Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  page      Page?
+}
+
+model UserVote {
+  voteId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  choice    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vote      Vote     @relation(fields: [voteId], references: [id], onDelete: Cascade)
+
+  @@unique([voteId, userId])
+}
+
+model VoteOptions {
+  name   String
+  voteId String @db.Uuid
+  vote   Vote   @relation(fields: [voteId], references: [id], onDelete: Cascade)
+
+  @@unique([voteId, name])
+}
+
+enum VoteContext {
+  inline
+  proposal
+}
+
+model Vote {
+  id          String        @id @default(uuid()) @db.Uuid
+  pageId      String        @db.Uuid
+  title       String
+  description String?
+  deadline    DateTime
+  status      VoteStatus
+  createdAt   DateTime      @default(now())
+  createdBy   String        @db.Uuid
+  spaceId     String        @db.Uuid
+  threshold   Int
+  type        VoteType      @default(SingleChoice)
+  context     VoteContext   @default(inline)
+  author      User          @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  page        Page          @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  space       Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  userVotes   UserVote[]
+  voteOptions VoteOptions[]
+}
+
+model User {
+  id                        String                     @id @default(uuid()) @db.Uuid
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @default(now())
+  addresses                 String[]
+  deletedAt                 DateTime?
+  avatar                    String?
+  avatarContract            String?
+  avatarTokenId             String?
+  avatarChain               Int?
+  username                  String
+  isBot                     Boolean?                   @default(false)
+  path                      String?                    @unique
+  identityType              IdentityType?
+  email                     String?
+  applications              Application[]
+  blocks                    Block[]
+  bounties                  Bounty[]
+  bountyPermissions         BountyPermission[]
+  comments                  Comment[]
+  discordUser               DiscordUser?
+  favorites                 FavoritePage[]
+  inviteLinks               InviteLink[]
+  pages                     Page[]
+  permissions               PagePermission[]
+  poaps                     Poap[]
+  spacesCreated             Space[]
+  spacePermissions          SpacePermission[]
+  spaceRoles                SpaceRole[]
+  telegramUser              TelegramUser?
+  threads                   Thread[]
+  profile                   UserDetails?
+  gnosisSafes               UserGnosisSafe[]
+  UserNotification          UserNotification[]
+  notificationState         UserNotificationState?
+  userVotes                 UserVote[]
+  initiatedVotes            Vote[]
+  profileItems              ProfileItem[]
+  proposalsAuthored         ProposalAuthor[]
+  proposalsReviewed         ProposalReviewer[]
+  reviewedProposals         Proposal[]
+  workspaceEvents           WorkspaceEvent[]
+  wallets                   UserWallet[]
+  memberPropertyValues      MemberPropertyValue[]
+}
+
+model UserWallet {
+  address String @unique
+  userId  String @db.Uuid
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserNotificationState {
+  snoozedUntil  DateTime?
+  snoozeMessage String?
+  userId        String    @unique @db.Uuid
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserNotification {
+  taskId    String
+  createdAt DateTime             @default(now())
+  userId    String               @db.Uuid
+  type      NotificationType
+  channel   NotificationChannel?
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+}
+
+model UserDetails {
+  id          String  @id @db.Uuid
+  description String?
+  social      Json?
+  user        User    @relation(fields: [id], references: [id], onDelete: Cascade)
+  timezone    String?
+}
+
+model TelegramUser {
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+  userId     String   @unique @db.Uuid
+  telegramId Int      @id
+  account    Json
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DiscordUser {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  userId    String   @unique @db.Uuid
+  discordId String   @id
+  account   Json
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Poap {
+  id            String   @id @default(uuid()) @db.Uuid
+  tokenId       String   @unique
+  userId        String   @db.Uuid
+  walletAddress String
+  isHidden      Boolean?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FavoritePage {
+  pageId String @db.Uuid
+  userId String @db.Uuid
+  page   Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, userId])
+}
+
+model SpaceRole {
+  spaceId                String            @db.Uuid
+  userId                 String            @db.Uuid
+  tokenGateConnectedDate DateTime?
+  tokenGateId            String?           @db.Uuid
+  id                     String            @id @default(uuid()) @db.Uuid
+  isAdmin                Boolean           @default(false)
+  createdAt              DateTime          @default(now())
+  space                  Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  tokenGate              TokenGate?        @relation(fields: [tokenGateId], references: [id])
+  user                   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spaceRoleToRole        SpaceRoleToRole[]
+
+  @@unique([spaceId, userId], name: "spaceUser")
+}
+
+model InviteLink {
+  id                String             @id @default(uuid()) @db.Uuid
+  code              String             @unique
+  createdAt         DateTime           @default(now())
+  createdBy         String             @db.Uuid
+  spaceId           String             @db.Uuid
+  maxAgeMinutes     Int                @default(60)
+  maxUses           Int                @default(-1)
+  useCount          Int                @default(0)
+  author            User               @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  space             Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  inviteLinkToRoles InviteLinkToRole[]
+}
+
+model Bounty {
+  createdBy         String             @db.Uuid
+  spaceId           String             @db.Uuid
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now())
+  rewardAmount      Float
+  rewardToken       String
+  status            BountyStatus       @default(open)
+  id                String             @id @default(uuid()) @db.Uuid
+  chainId           Int
+  suggestedBy       String?            @db.Uuid
+  approveSubmitters Boolean            @default(false)
+  submissionsLocked Boolean            @default(false)
+  maxSubmissions    Int?               @default(1)
+  author            User               @relation(fields: [createdBy], references: [id])
+  space             Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  applications      Application[]
+  permissions       BountyPermission[]
+  page              Page?
+}
+
+model BountyPermission {
+  id              String                @id @default(uuid()) @db.Uuid
+  userId          String?               @db.Uuid
+  spaceId         String?               @db.Uuid
+  roleId          String?               @db.Uuid
+  public          Boolean?
+  bountyId        String                @db.Uuid
+  permissionLevel BountyPermissionLevel
+  operations      BountyOperation[]
+  bounty          Bounty                @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+  role            Role?                 @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  space           Space?                @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user            User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bountyId, permissionLevel], name: "userId_bountyId_permissionLevel")
+  @@unique([roleId, bountyId, permissionLevel], name: "roleId_bountyId_permissionLevel")
+  @@unique([spaceId, bountyId, permissionLevel], name: "spaceId_bountyId_permissionLevel")
+  @@unique([public, bountyId, permissionLevel], name: "public_bountyId_permissionLevel")
+}
+
+model Application {
+  id              String            @id @default(uuid()) @db.Uuid
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now())
+  bountyId        String            @db.Uuid
+  createdBy       String            @db.Uuid
+  walletAddress   String?
+  message         String?
+  spaceId         String
+  status          ApplicationStatus @default(applied)
+  submission      String?
+  submissionNodes String?
+  acceptedBy      String?           @db.Uuid
+  reviewedBy      String?           @db.Uuid
+  bounty          Bounty            @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+  applicant       User              @relation(fields: [createdBy], references: [id])
+  transactions    Transaction[]
+
+  @@unique([bountyId, createdBy])
+}
+
+model Transaction {
+  id            String      @id @default(uuid()) @db.Uuid
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @default(now())
+  transactionId String
+  chainId       String
+  applicationId String      @db.Uuid
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+model TokenGate {
+  id               String            @id @default(uuid()) @db.Uuid
+  createdAt        DateTime          @default(now())
+  createdBy        String            @db.Uuid
+  spaceId          String            @db.Uuid
+  conditions       Json
+  resourceId       Json
+  userRole         String?
+  accessTypes      String[]          @default([])
+  space            Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  spaceRoles       SpaceRole[]
+  tokenGateToRoles TokenGateToRole[]
+}
+
+model PaymentMethod {
+  id                String     @id @default(uuid()) @db.Uuid
+  createdAt         DateTime   @default(now())
+  createdBy         String     @db.Uuid
+  spaceId           String     @db.Uuid
+  chainId           Int
+  contractAddress   String?
+  tokenName         String
+  tokenSymbol       String
+  tokenDecimals     Int
+  tokenLogo         String?
+  gnosisSafeAddress String?
+  walletType        WalletType @default(metamask)
+  space             Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, chainId, contractAddress])
+  @@unique([spaceId, chainId, gnosisSafeAddress])
+}
+
+model UserGnosisSafe {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  chainId   Int
+  address   String
+  name      String?
+  threshold Int
+  owners    String[]
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Role {
+  id                        String                     @id @default(uuid()) @db.Uuid
+  createdAt                 DateTime                   @default(now())
+  createdBy                 String                     @db.Uuid
+  name                      String
+  spaceId                   String                     @db.Uuid
+  source                    RoleSource?
+  sourceId                  String?
+  space                     Space                      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  bountyPermissions         BountyPermission[]
+  permissions               PagePermission[]
+  spacePermissions          SpacePermission[]
+  spaceRolesToRole          SpaceRoleToRole[]
+  TokenGateToRole           TokenGateToRole[]
+  proposalReviewer          ProposalReviewer[]
+  InviteLinkToRole          InviteLinkToRole[]
+  memberPropertyPermissions MemberPropertyPermission[]
+
+  @@unique([spaceId, name])
+}
+
+model TokenGateToRole {
+  id          String    @id @default(uuid()) @db.Uuid
+  createdAt   DateTime  @default(now())
+  tokenGateId String    @db.Uuid
+  roleId      String    @db.Uuid
+  role        Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  tokenGate   TokenGate @relation(fields: [tokenGateId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenGateId, roleId])
+}
+
+model InviteLinkToRole {
+  id           String     @id @default(uuid()) @db.Uuid
+  createdAt    DateTime   @default(now())
+  inviteLinkId String     @db.Uuid
+  roleId       String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  inviteLink   InviteLink @relation(fields: [inviteLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteLinkId, roleId])
+}
+
+model SpaceRoleToRole {
+  id          String    @id @default(uuid()) @db.Uuid
+  createdAt   DateTime  @default(now())
+  spaceRoleId String    @db.Uuid
+  roleId      String    @db.Uuid
+  role        Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  spaceRole   SpaceRole @relation(fields: [spaceRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceRoleId, roleId])
+}
+
+model PagePermission {
+  pageId                  String              @db.Uuid
+  userId                  String?             @db.Uuid
+  id                      String              @id @default(uuid()) @db.Uuid
+  permissionLevel         PagePermissionLevel
+  permissions             PageOperations[]
+  roleId                  String?             @db.Uuid
+  spaceId                 String?             @db.Uuid
+  inheritedFromPermission String?             @db.Uuid
+  public                  Boolean?
+  sourcePermission        PagePermission?     @relation("InheritedPermissions", fields: [inheritedFromPermission], references: [id], onDelete: Cascade)
+  page                    Page                @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  role                    Role?               @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  space                   Space?              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user                    User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inheritingChildren      PagePermission[]    @relation("InheritedPermissions")
+
+  @@unique([userId, pageId], name: "userId_PageId")
+  @@unique([roleId, pageId], name: "roleId_pageId")
+  @@unique([spaceId, pageId], name: "spaceId_pageId")
+  @@unique([public, pageId], name: "public_pageId")
+}
+
+model SpacePermission {
+  id         String           @id @default(uuid()) @db.Uuid
+  createdAt  DateTime         @default(now())
+  operations SpaceOperation[]
+  forSpaceId String           @db.Uuid
+  roleId     String?          @db.Uuid
+  spaceId    String?          @db.Uuid
+  userId     String?          @db.Uuid
+  forSpace   Space            @relation("permittedGroups", fields: [forSpaceId], references: [id], onDelete: Cascade)
+  role       Role?            @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  space      Space?           @relation("spacePermissions", fields: [spaceId], references: [id], onDelete: Cascade)
+  user       User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, forSpaceId], name: "userId_forSpaceId")
+  @@unique([roleId, forSpaceId], name: "roleId_forSpaceId")
+  @@unique([spaceId, forSpaceId], name: "spaceId_forSpaceId")
+}
+
+model Thread {
+  id        String    @id @default(uuid()) @db.Uuid
+  createdAt DateTime  @default(now())
+  pageId    String    @db.Uuid
+  context   String
+  userId    String    @db.Uuid
+  resolved  Boolean
+  spaceId   String    @db.Uuid
+  updatedAt DateTime?
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  space     Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+  comments  Comment[]
+}
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  createdAt DateTime  @default(now())
+  threadId  String    @db.Uuid
+  content   Json?
+  userId    String    @db.Uuid
+  pageId    String    @db.Uuid
+  spaceId   String    @db.Uuid
+  updatedAt DateTime?
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  space     Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  thread    Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model Proposal {
+  id                     String             @id @default(uuid()) @db.Uuid
+  createdBy              String             @db.Uuid
+  spaceId                String             @db.Uuid
+  status                 ProposalStatus
+  authors                ProposalAuthor[]
+  reviewers              ProposalReviewer[]
+  space                  Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  page                   Page?
+  reviewedBy             String?            @db.Uuid
+  reviewer               User?              @relation(fields: [reviewedBy], references: [id], onDelete: Cascade)
+  reviewedAt             DateTime?
+  categoryId             String?            @db.Uuid
+  category               ProposalCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  snapshotProposalExpiry DateTime?
+}
+
+model ProposalAuthor {
+  proposalId String   @db.Uuid
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  userId     String   @db.Uuid
+  author     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, userId])
+}
+
+model ProposalReviewer {
+  id         String   @id @default(uuid()) @db.Uuid
+  proposalId String   @db.Uuid
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  roleId     String?  @db.Uuid
+  userId     String?  @db.Uuid
+  role       Role?    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  reviewer   User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, proposalId], name: "userId_proposalId")
+  @@unique([roleId, proposalId], name: "roleId_proposalId")
+}
+
+model ProfileItem {
+  id       String          @id
+  userId   String          @db.Uuid
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isHidden Boolean?
+  metadata Json?
+  type     ProfileItemType
+}
+
+model WorkspaceEvent {
+  id        String             @id @default(uuid()) @db.Uuid
+  actorId   String?            @db.Uuid
+  actor     User?              @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  type      WorkspaceEventType
+  meta      Json?
+  spaceId   String             @db.Uuid
+  space     Space              @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  pageId    String             @db.Uuid
+  page      Page               @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now())
+}
+
+model ProposalCategory {
+  id       String     @id @default(uuid()) @db.Uuid
+  spaceId  String     @db.Uuid
+  space    Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  title    String
+  color    String
+  proposal Proposal[]
+}
+
+enum MemberPropertyType {
+  text
+  text_multiline
+  number
+  email
+  phone
+  url
+  select
+  multiselect
+  role
+  profile_pic
+  timezone
+  name
+  discord
+  twitter
+}
+
+enum MemberPropertyPermissionLevel {
+  view
+}
+
+model MemberProperty {
+  id                   String                     @id @default(uuid()) @db.Uuid
+  createdAt            DateTime                   @default(now())
+  createdBy            String                     @db.Uuid
+  updatedAt            DateTime                   @updatedAt
+  updatedBy            String                     @db.Uuid
+  spaceId              String                     @db.Uuid
+  space                Space                      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  name                 String
+  type                 MemberPropertyType
+  options              Json?
+  index                Int                        @default(-1)
+  memberPropertyValues MemberPropertyValue[]
+  permissions          MemberPropertyPermission[]
+}
+
+model MemberPropertyValue {
+  id               String         @id @default(uuid()) @db.Uuid
+  updatedAt        DateTime       @updatedAt
+  updatedBy        String         @db.Uuid
+  memberPropertyId String         @db.Uuid
+  memberProperty   MemberProperty @relation(fields: [memberPropertyId], references: [id], onDelete: Cascade)
+  spaceId          String         @db.Uuid
+  space            Space          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  userId           String         @db.Uuid
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  value            Json?
+
+  @@unique([memberPropertyId, spaceId, userId])
+}
+
+model MemberPropertyPermission {
+  id                            String                        @id @default(uuid()) @db.Uuid
+  roleId                        String?                       @db.Uuid
+  memberPropertyPermissionLevel MemberPropertyPermissionLevel
+  memberPropertyId              String                        @db.Uuid
+  memberProperty                MemberProperty                @relation(fields: [memberPropertyId], references: [id], onDelete: Cascade)
+  role                          Role?                         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, memberPropertyId])
+}
